@@ -87,6 +87,23 @@ namespace backtracexx
 #endif
 			lookupSymbol( frame );
 			trace->push_back( frame );
+			//
+			// temporary workaround for libgcc/glibc bug:
+			// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=36568
+			//
+			static __thread _Unwind_Ptr prevIp = 0;
+			static __thread unsigned recursionDepth = 0;
+			unsigned const RecursionLimit = 8;
+			if ( prevIp == ip )
+			{
+				if ( ++recursionDepth > RecursionLimit )
+					return _URC_END_OF_STACK;
+			}
+			else
+			{
+				prevIp = ip;
+				recursionDepth = 0;
+			}
 			return _URC_NO_REASON;
 		}
 	}
