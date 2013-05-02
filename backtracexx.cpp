@@ -20,7 +20,7 @@ namespace backtracexx
 			// the same for sparc v7/8/9.
 			ip -= 8;
 #elif defined( __alpha__ )
-			// alpha not tested yet.
+			ip -= 4;
 #elif defined( __i386__ ) || defined( __x86_64__ )
 			// TODO: analysis of complex addressing forms (see intel/24319102.pdf).
 #endif
