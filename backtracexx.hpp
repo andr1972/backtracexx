@@ -39,7 +39,7 @@ namespace backtracexx
 {
 	struct BACKTRACEXX_EXPORT Frame
 	{
-		Frame();
+		explicit Frame( unsigned long address );
 
 		unsigned long address;
 		std::string symbol;
@@ -58,6 +58,7 @@ namespace backtracexx
 	//	ex != 0, scan() stack from specified context (e.g. passed from SEH handler).
 	//
 	BACKTRACEXX_EXPORT Trace scan( ::PCONTEXT /* not used on linux */ ctx = 0 );
+	BACKTRACEXX_EXPORT bool lookupSymbol( Frame& );
 	BACKTRACEXX_EXPORT std::ostream& operator << ( std::ostream&, Trace const& );
 }
 

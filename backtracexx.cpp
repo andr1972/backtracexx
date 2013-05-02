@@ -36,111 +36,107 @@
 
 namespace backtracexx
 {
-	namespace
-	{
 
 #if defined( __GNUC__ )
 
-		bool lookupSymbol( Frame& frame )
+	bool lookupSymbol( Frame& frame )
+	{
+		Dl_info info;
+		if ( ::dladdr( reinterpret_cast< void* >( frame.address ), &info ) )
 		{
-			Dl_info info;
-			if ( ::dladdr( reinterpret_cast< void* >( frame.address ), &info ) )
+			frame.moduleBaseAddress = reinterpret_cast< unsigned long >( info.dli_fbase );
+			if ( info.dli_fname && std::strlen( info.dli_fname ) )
+				frame.moduleName = info.dli_fname;
+			if ( info.dli_saddr )
 			{
-				frame.moduleBaseAddress = reinterpret_cast< unsigned long >( info.dli_fbase );
-				if ( info.dli_fname && std::strlen( info.dli_fname ) )
-					frame.moduleName = info.dli_fname;
-				if ( info.dli_saddr )
+				frame.displacement = frame.address - reinterpret_cast< unsigned long >( info.dli_saddr );
+				int status;
+				char* demangled = abi::__cxa_demangle( info.dli_sname, 0, 0, &status );
+				if ( status != -1 )
 				{
-					frame.displacement = frame.address - reinterpret_cast< unsigned long >( info.dli_saddr );
-					int status;
-					char* demangled = abi::__cxa_demangle( info.dli_sname, 0, 0, &status );
-					if ( status != -1 )
+					if ( status == 0 )
 					{
-						if ( status == 0 )
-						{
-							frame.symbol = demangled;
-							std::free( demangled );
-						}
-						else
-							frame.symbol = info.dli_sname;
+						frame.symbol = demangled;
+						std::free( demangled );
 					}
+					else
+						frame.symbol = info.dli_sname;
 				}
-				return true;
 			}
-			return false;
+			return true;
 		}
+		return false;
+	}
 
+	namespace
+	{
 		_Unwind_Reason_Code helper( struct _Unwind_Context* ctx, Trace* trace )
 		{
-			Frame frame;
 			_Unwind_Ptr ip;
 
 #if ( __GNUC__ >= 4 ) && ( __GNUC_PATCHLEVEL__ >= 2 )
 
 			int beforeInsn;
 			ip = _Unwind_GetIPInfo( ctx, &beforeInsn );
+			Frame frame( ip );
 			if ( beforeInsn )
 				frame.signalTrampoline = true;
-
 #else
-
 			ip = _Unwind_GetIP( ctx );
-
+			Frame frame( ip );
 #endif
-
-			frame.address = ip;
 			lookupSymbol( frame );
 			trace->push_back( frame );
 			return _URC_NO_REASON;
 		}
+	}
 
 #elif defined( _MSC_VER ) && defined( WIN32 )
 
-		bool lookupSymbol( Frame& frame )
+	bool lookupSymbol( Frame& frame )
+	{
+		::MEMORY_BASIC_INFORMATION mbi;
+		if ( !::VirtualQuery( reinterpret_cast< ::LPCVOID >( frame.address ), &mbi, sizeof( mbi ) ) )
+			return false;
+		::CHAR moduleName[ MAX_PATH ];
+		::GetModuleFileNameA( reinterpret_cast< ::HMODULE >( mbi.AllocationBase ), moduleName, sizeof( moduleName ) );
+		if ( mbi.Protect & PAGE_NOACCESS )
+			return false;
+		frame.moduleBaseAddress = reinterpret_cast< unsigned long >( mbi.AllocationBase );
+		frame.moduleName = moduleName;
+		int const MaxSymbolNameLength = 8192;
+		::BYTE symbolBuffer[ sizeof( ::IMAGEHLP_SYMBOL64 ) + MaxSymbolNameLength ];
+		::PIMAGEHLP_SYMBOL64 symbol = reinterpret_cast< ::PIMAGEHLP_SYMBOL64 >( symbolBuffer );
+		symbol->SizeOfStruct = sizeof( symbolBuffer );
+		symbol->MaxNameLength = MaxSymbolNameLength - 1;
+		if ( ::SymLoadModule64( ::GetCurrentProcess(), 0, moduleName, 0,
+			reinterpret_cast< ::DWORD64 >( mbi.AllocationBase ), 0 ) )
 		{
-			::MEMORY_BASIC_INFORMATION mbi;
-			if ( !::VirtualQuery( reinterpret_cast< ::LPCVOID >( frame.address ), &mbi, sizeof( mbi ) ) )
-				return false;
-			::CHAR moduleName[ MAX_PATH ];
-			::GetModuleFileNameA( reinterpret_cast< ::HMODULE >( mbi.AllocationBase ), moduleName, sizeof( moduleName ) );
-			if ( mbi.Protect & PAGE_NOACCESS )
-				return false;
-			frame.moduleBaseAddress = reinterpret_cast< unsigned long >( mbi.AllocationBase );
-			frame.moduleName = moduleName;
-			int const MaxSymbolNameLength = 8192;
-			::BYTE symbolBuffer[ sizeof( ::IMAGEHLP_SYMBOL64 ) + MaxSymbolNameLength ];
-			::PIMAGEHLP_SYMBOL64 symbol = reinterpret_cast< ::PIMAGEHLP_SYMBOL64 >( symbolBuffer );
-			symbol->SizeOfStruct = sizeof( symbolBuffer );
-			symbol->MaxNameLength = MaxSymbolNameLength - 1;
-			if ( ::SymLoadModule64( ::GetCurrentProcess(), 0, moduleName, 0,
-				reinterpret_cast< ::DWORD64 >( mbi.AllocationBase ), 0 ) )
+			::DWORD64 displacement;
+			if ( ::SymGetSymFromAddr64( ::GetCurrentProcess(), static_cast< ::DWORD64 >( frame.address ),
+				&displacement, symbol ) )
 			{
-				::DWORD64 displacement;
-				if ( ::SymGetSymFromAddr64( ::GetCurrentProcess(), static_cast< ::DWORD64 >( frame.address ),
-					&displacement, symbol ) )
+				frame.symbol = symbol->Name;
+				frame.displacement = static_cast< unsigned long >( displacement );
+				::IMAGEHLP_LINE64 line;
+				line.SizeOfStruct = sizeof( ::IMAGEHLP_LINE64 );
+				::DWORD lineDisplacement;
+				if ( ::SymGetLineFromAddr64( ::GetCurrentProcess(), frame.address, &lineDisplacement, &line ) )
 				{
-					frame.symbol = symbol->Name;
-					frame.displacement = static_cast< unsigned long >( displacement );
-					::IMAGEHLP_LINE64 line;
-					line.SizeOfStruct = sizeof( ::IMAGEHLP_LINE64 );
-					::DWORD lineDisplacement;
-					if ( ::SymGetLineFromAddr64( ::GetCurrentProcess(), frame.address, &lineDisplacement, &line ) )
-					{
-						frame.fileName = line.FileName;
-						frame.lineNumber = line.LineNumber;
-					}
+					frame.fileName = line.FileName;
+					frame.lineNumber = line.LineNumber;
 				}
-				::SymUnloadModule64( ::GetCurrentProcess(), reinterpret_cast< ::DWORD64 >( mbi.AllocationBase ) );
 			}
-			return true;
+			::SymUnloadModule64( ::GetCurrentProcess(), reinterpret_cast< ::DWORD64 >( mbi.AllocationBase ) );
 		}
-
-#endif
+		return true;
 	}
 
-	Frame::Frame()
+#endif
+
+	Frame::Frame( unsigned long address )
 	:
-		address(), displacement(), lineNumber(), signalTrampoline( boost::logic::indeterminate )
+		address( address ), displacement(), lineNumber(), signalTrampoline( boost::logic::indeterminate )
 	{
 	}
 
@@ -166,8 +162,7 @@ namespace backtracexx
 		if ( ctx )
 		{
 			context = *ctx;
-			Frame frame;
-			frame.address = context.Eip;
+			Frame frame( context.Eip );
 			lookupSymbol( frame );
 			trace.push_back( frame );
 		}
@@ -196,8 +191,7 @@ namespace backtracexx
 			//
 			if ( !offset )
 				break;
-			Frame frame;
-			frame.address = offset;
+			Frame frame( offset );
 			if ( lookupSymbol( frame ) )
 				trace.push_back( frame );
 		}
