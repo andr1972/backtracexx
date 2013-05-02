@@ -5,6 +5,7 @@
 #include <iostream>
 #include <iterator>
 #include <stdexcept>
+#include <pthread.h>
 
 jmp_buf context;
 
@@ -32,6 +33,7 @@ void* foo( void* )
 {
 	bar( &zoo );
 	pthread_exit( 0 );
+	return 0;
 }
 
 int main( int argc, char const* const* argv )
