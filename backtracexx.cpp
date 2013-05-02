@@ -5,6 +5,7 @@
 #include <dlfcn.h>
 #include <unwind.h>
 #elif defined( _MSC_VER )
+#pragma warning( disable : 4312 )	//	'reinterpret_cast' : conversion from 'unsigned long' to 'void*' of greater size
 #include <windows.h>
 #include <dbghelp.h>
 //
@@ -40,7 +41,7 @@ namespace backtracexx
 			ip -= 8;
 #elif defined( __alpha__ )
 			ip -= 4;
-#elif defined( __i386__ ) || defined( __x86_64__ )
+#elif defined( __i386__ ) || defined( __x86_64__ ) || defined( WIN32 )
 			//
 			//	TODO:
 			//		analysis of complex addressing forms (see intel/24319102.pdf).
@@ -105,8 +106,6 @@ namespace backtracexx
 		}
 
 #elif defined( _MSC_VER ) && defined( WIN32 )
-
-#pragma warning( disable : 4312 )	//	'reinterpret_cast' : conversion from 'unsigned long' to 'LPCVOID' of greater size
 
 		void lookupSymbol( Frame& frame )
 		{
@@ -178,7 +177,7 @@ namespace backtracexx
 		while ( stackFrame->returnAddress )
 		{
 			Frame frame;
-			frame.address = stackFrame->returnAddress;
+			frame.address = caller( stackFrame->returnAddress );
 			lookupSymbol( frame );
 			trace.push_back( frame );
 			stackFrame = stackFrame->previousFrame;
