@@ -8,7 +8,6 @@
 #include <unwind.h>
 #elif defined( _MSC_VER )
 #pragma warning( disable : 4312 )	//	'reinterpret_cast' : conversion from 'unsigned long' to 'void*' of greater size
-#include <windows.h>
 #include <dbghelp.h>
 //
 //	please use a recent dbghelp.dll because older versions
@@ -144,7 +143,7 @@ namespace backtracexx
 	{
 	}
 
-	Trace scan()
+	Trace scan( PEXCEPTION_POINTERS ex )
 	{
 		Trace trace;
 
@@ -163,29 +162,41 @@ namespace backtracexx
 		::CONTEXT context = { 0 };
 		::STACKFRAME64 stackFrame = { 0 };
 		stackFrame.AddrPC.Mode = stackFrame.AddrFrame.Mode = stackFrame.AddrStack.Mode = AddrModeFlat;
-		__asm
+		if ( ex )
 		{
-			call $ + 5;
-			pop eax;
-			mov context.Eip, eax;
-			mov context.Esp, esp;
-			mov context.Ebp, ebp;
-			mov stackFrame.AddrPC, eax;
-			mov stackFrame.AddrStack, esp;
-			mov stackFrame.AddrFrame, ebp;
+			context = *( ex->ContextRecord );
+			Frame frame;
+			frame.address = context.Eip;
+			lookupSymbol( frame );
+			trace.push_back( frame );
 		}
+		else
+		{
+			__asm
+			{
+				call $ + 5;
+				pop eax;
+				mov context.Eip, eax;
+				mov context.Esp, esp;
+				mov context.Ebp, ebp;
+			}
+		}
+		stackFrame.AddrPC.Offset = context.Eip;
+		stackFrame.AddrStack.Offset = context.Esp;
+		stackFrame.AddrFrame.Offset = context.Ebp;
 		while ( ::StackWalk64( IMAGE_FILE_MACHINE_I386, process, ::GetCurrentThread(),
 			&stackFrame, &context, 0, ::SymFunctionTableAccess64, ::SymGetModuleBase64, 0 ) )
 		{
 			Frame frame;
-			frame.address = static_cast< unsigned long >( stackFrame.AddrReturn.Offset );
+			unsigned long offset = static_cast< unsigned long >( stackFrame.AddrReturn.Offset );
 			//
 			//	the deepest frame pointer and return address of the process
 			//	call chain are zeroed by kernel32.dll during process startup,
 			//	so exclude such frame from trace and exit from loop.
 			//
-			if ( !frame.address )
+			if ( !offset )
 				break;
+			frame.address = caller( offset );
 			lookupSymbol( frame );
 			trace.push_back( frame );
 		}
@@ -204,7 +215,10 @@ namespace backtracexx
 			backtracexx::Frame const& f = *i;
 			os	<< std::showbase << std::showpoint << std::hex << std::setw( 16 ) << f.address
 				<< " : " << ( f.symbol.empty() ? "<unresolved symbol>" : f.symbol )
-				<< "+" << f.displacement << " [" << f.module << "]" << std::endl;
+				<< "+" << f.displacement;
+			if ( f.signalTrampoline )
+				os << " [signal trampoline]";
+			os << " [" << f.module << "]" << std::endl;
 		}
 		os << "==================" << std::endl;
 		return os;

@@ -6,13 +6,21 @@
 #include <vector>
 
 #if defined( WIN32 ) || defined( WIN64 )
+
 #ifdef BACKTRACEXX_EXPORTS
 #define BACKTRACEXX_EXPORT	__declspec( dllexport )
 #else
 #define BACKTRACEXX_EXPORT	__declspec( dllimport )
 #endif
+
+#include <windows.h>
+#include <winnt.h>
+
 #else
+
 #define BACKTRACEXX_EXPORT	__attribute__(( visibility( "default" ) ))
+typedef void* PEXCEPTION_POINTERS;
+
 #endif
 
 namespace backtracexx
@@ -30,7 +38,11 @@ namespace backtracexx
 
 	typedef std::vector< Frame > Trace;
 
-	BACKTRACEXX_EXPORT Trace scan();
+	//
+	//	ex == 0, scan() stack from current frame.
+	//	ex != 0, scan() stack from specified context (e.g. passed from SEH handler).
+	//
+	BACKTRACEXX_EXPORT Trace scan( ::PEXCEPTION_POINTERS /* not used on linux */ ex = 0 );
 	BACKTRACEXX_EXPORT std::ostream& operator << ( std::ostream&, Trace const& );
 }
 
