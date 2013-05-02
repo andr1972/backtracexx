@@ -1,16 +1,19 @@
 # win32 target
-CXX := i486-mingw32-g++
+CXX32 := i686-pc-mingw32-g++
 
 # win64 target
-#CXX := x86_64-mingw32-g++
+CXX64 := x86_64-pc-mingw32-g++
 
-CXXFLAGS := -O1 -Wall -Werror -pedantic
+CXXFLAGS := -O1 -Wall -Werror -pedantic -shared-libgcc
 
 all: example
 
 example: example.cpp backtracexx.hpp backtracexx.cpp
-	$(CXX) $(CXXFLAGS) -DBACKTRACEXX_EXPORTS backtracexx.cpp -o backtracexx.dll -shared -s -ldbghelp
-	$(CXX) $(CXXFLAGS) example.cpp -o example.exe -L. -lbacktracexx -s
+	@mkdir -p bin-mingw-{32,64}
+	$(CXX32) $(CXXFLAGS) -DBACKTRACEXX_EXPORTS backtracexx.cpp -o bin-mingw-32/backtracexx.dll -shared -s -ldbghelp
+	$(CXX32) $(CXXFLAGS) example.cpp -o bin-mingw-32/example.exe -Lbin-mingw-32 -lbacktracexx -s
+	$(CXX64) $(CXXFLAGS) -DBACKTRACEXX_EXPORTS backtracexx.cpp -o bin-mingw-64/backtracexx.dll -shared -s -ldbghelp
+	$(CXX64) $(CXXFLAGS) example.cpp -o bin-mingw-64/example.exe -Lbin-mingw-64 -lbacktracexx -s
 
 clean:
-	rm -f *.o *.s *.ii example.exe backtracexx.dll
+	rm -rf bin-mingw-{32,64}
