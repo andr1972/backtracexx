@@ -8,16 +8,10 @@
 
 #if defined( WIN32 ) || defined( WIN64 )
 
-#ifdef _DLL	//	defined when /MD or /MDd (Multithread DLL) is specified.
-
 #ifdef BACKTRACEXX_EXPORTS
 #define BACKTRACEXX_EXPORT	__declspec( dllexport )
 #else
 #define BACKTRACEXX_EXPORT	__declspec( dllimport )
-#endif
-
-#else
-#define BACKTRACEXX_EXPORT
 #endif
 
 struct _CONTEXT;
