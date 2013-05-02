@@ -29,9 +29,12 @@ namespace backtracexx
 
 		_Unwind_Reason_Code helper( struct _Unwind_Context* ctx, void* arg )
 		{
-			_Unwind_Ptr ip = _Unwind_GetIP( ctx );
-			reinterpret_cast< raw_backtrace_type* >( arg )->push_back(
-				caller( reinterpret_cast< unsigned char const* >( ip ) ) );
+			int beforeInsn = 0;
+			_Unwind_Ptr ip = _Unwind_GetIPInfo( ctx, &beforeInsn );
+			unwind_point_type up( reinterpret_cast< unsigned char const* >( ip ), beforeInsn );
+			if ( !beforeInsn )
+				up.first = caller( reinterpret_cast< unsigned char const* >( up.first ) );
+			reinterpret_cast< raw_backtrace_type* >( arg )->push_back( up );
 			return _URC_NO_REASON;
 		}
 	}
@@ -53,8 +56,9 @@ namespace backtracexx
 		{
 			os.str( std::string() );
 			Dl_info info;
-			os << std::setw( 18 ) << *i << " : ";
-			if ( dladdr( const_cast< void* >( *i ), &info ) )
+			unwind_point_type up = *i;
+			os << std::setw( 18 ) << up.first << " : ";
+			if ( dladdr( const_cast< void* >( up.first ), &info ) )
 			{
 				if ( !info.dli_saddr )
 					// the image containing address is found, but no nearest symbol was found.
@@ -65,7 +69,7 @@ namespace backtracexx
 					char* demangled = abi::__cxa_demangle( info.dli_sname, 0, 0, &status );
 					if ( status != -1 )
 					{
-						long offset = reinterpret_cast< long >( *i ) - reinterpret_cast< long >( info.dli_saddr );
+						long offset = reinterpret_cast< long >( up.first ) - reinterpret_cast< long >( info.dli_saddr );
 						os << ( ( status == 0 ) ? demangled : info.dli_sname ) << '+' << offset;
 						if ( status == 0 )
 							free( demangled );
@@ -75,6 +79,8 @@ namespace backtracexx
 			}
 			else
 				os << "??";
+			if ( up.second )
+				os << " [signal frame]";
 			sbt.push_back( os.str() );
 		}
 		return sbt;

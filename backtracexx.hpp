@@ -3,10 +3,14 @@
 
 #include <list>
 #include <string>
+#include <utility>
 
 namespace backtracexx
 {
-	typedef std::list< void const* > raw_backtrace_type;
+	typedef std::pair< void const*,
+		bool /* signal frame */ > unwind_point_type;
+
+	typedef std::list< unwind_point_type > raw_backtrace_type;
 	typedef std::list< std::string > symbolic_backtrace_type;
 
 	raw_backtrace_type scan();
