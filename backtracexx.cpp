@@ -207,10 +207,22 @@ namespace backtracexx
 				mov context.Ebp, ebp;
 			}
 #else
-#error "win64 needs external assembly."
+#error "msvc/win64 needs external assembly."
 #endif
 #else
-#error "win32/64 gcc implementation not finished yet."
+#if defined( __MINGW64__ )
+			asm ( "foo: movq $foo, %0" : "=g" ( context.Rip ) );
+			register ::DWORD64 rsp asm( "rsp" );
+			context.Rsp = rsp;
+			register ::DWORD64 rbp asm( "rbp" );
+			context.Rbp = rbp;
+#else
+			asm ( "foo: movl $foo, %0" : "=g" ( context.Eip ) );
+			register ::DWORD esp asm( "esp" );
+			context.Esp = esp;
+			register ::DWORD ebp asm( "ebp" );
+			context.Ebp = ebp;
+#endif
 #endif
 
 		}
