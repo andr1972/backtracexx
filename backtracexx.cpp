@@ -88,8 +88,8 @@ namespace backtracexx
 			lookupSymbol( frame );
 			trace->push_back( frame );
 			//
-			// temporary workaround for libgcc/glibc bug:
-			// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=36568
+			// temporary workaround for glibc bug:
+			// http://sources.redhat.com/bugzilla/show_bug.cgi?id=6693
 			//
 			static __thread _Unwind_Ptr prevIp = 0;
 			static __thread unsigned recursionDepth = 0;
