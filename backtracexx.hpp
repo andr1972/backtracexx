@@ -19,6 +19,7 @@ typedef struct _CONTEXT* PCONTEXT;
 #else
 
 #define BACKTRACEXX_EXPORT	__attribute__(( visibility( "default" ) ))
+
 typedef void* PCONTEXT;
 
 #endif
@@ -27,15 +28,15 @@ namespace backtracexx
 {
 	struct BACKTRACEXX_EXPORT Frame
 	{
-		explicit Frame( unsigned long address );
+		explicit Frame( void const* address );
 
-		unsigned long address;
+		void const* address;
 		std::string symbol;
-		unsigned long displacement;
+		long displacement;
 		std::string moduleName;
-		unsigned long moduleBaseAddress;
+		void const* moduleBaseAddress;
 		std::string fileName;
-		unsigned long lineNumber;
+		long lineNumber;
 	};
 
 	typedef std::list< Frame > Trace;

@@ -1,0 +1,16 @@
+# win32 target
+#CXX := i486-mingw32-g++
+
+# win64 target
+CXX := x86_64-mingw32-g++
+
+CXXFLAGS := -O1 -Wall -Werror -pedantic
+
+all: example
+
+example: example.cpp backtracexx.hpp backtracexx.cpp
+	$(CXX) $(CXXFLAGS) -DBACKTRACEXX_EXPORTS backtracexx.cpp -o backtracexx.dll -shared -s -ldbghelp
+	$(CXX) $(CXXFLAGS) example.cpp -o example.exe -L. -lbacktracexx -s
+
+clean:
+	rm -f *.o *.s *.ii example.exe backtracexx.dll

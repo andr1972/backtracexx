@@ -9,16 +9,17 @@
 //	- use libdwarf for printing line info for ELF objects.
 //
 
-#if defined( __GNUC__ )
+#if defined( __linux__ )
 #include <cxxabi.h>
 #include <dlfcn.h>
 #include <unwind.h>
-#elif defined( _MSC_VER )
+#elif defined( WIN32 ) || defined( WIN64 )
 #include <windows.h>
 #include <winnt.h>
-#pragma warning( disable : 4311 )	//	'reinterpret_cast' : pointer truncation from 'PVOID' to 'unsigned long'
-#pragma warning( disable : 4312 )	//	'reinterpret_cast' : conversion from 'unsigned long' to 'void*' of greater size
 #include <dbghelp.h>
+#else
+#error "not testet yet."
+#endif
 //
 //	please use a recent dbghelp.dll because older versions
 //	have unexpected problems with symbols resolving, e.g.
@@ -31,25 +32,28 @@
 //	this code doesn't work with:
 //	- dbghelp.dll v5.00.2195.6613 from Win2000/SP4.
 //
+
+#if defined( _MSC_VER )
 #pragma comment( lib, "dbghelp" )
 #endif
 
 namespace backtracexx
 {
 
-#if defined( __GNUC__ )
+#if defined( __linux__ )
 
 	bool lookupSymbol( Frame& frame )
 	{
 		Dl_info info;
-		if ( ::dladdr( reinterpret_cast< void* >( frame.address ), &info ) )
+		if ( ::dladdr( frame.address, &info ) )
 		{
-			frame.moduleBaseAddress = reinterpret_cast< unsigned long >( info.dli_fbase );
+			frame.moduleBaseAddress = info.dli_fbase;
 			if ( info.dli_fname && std::strlen( info.dli_fname ) )
 				frame.moduleName = info.dli_fname;
 			if ( info.dli_saddr )
 			{
-				frame.displacement = frame.address - reinterpret_cast< unsigned long >( info.dli_saddr );
+				frame.displacement = reinterpret_cast< ::ptrdiff_t >( frame.address )
+					- reinterpret_cast< ::ptrdiff_t >( info.dli_saddr );
 				int status;
 				char* demangled = abi::__cxa_demangle( info.dli_sname, 0, 0, &status );
 				if ( status != -1 )
@@ -80,7 +84,7 @@ namespace backtracexx
 		_Unwind_Reason_Code helper( struct _Unwind_Context* ctx, TraceHelper* th )
 		{
 			_Unwind_Ptr ip = _Unwind_GetIP( ctx );
-			Frame frame( ip );
+			Frame frame( reinterpret_cast< void const* >( ip ) );
 			lookupSymbol( frame );
 			th->trace.push_back( frame );
 			//
@@ -102,7 +106,7 @@ namespace backtracexx
 		}
 	}
 
-#elif defined( _MSC_VER ) && defined( WIN32 )
+#elif defined( WIN32 ) || defined( WIN64 )
 
 	bool lookupSymbol( Frame& frame )
 	{
@@ -113,7 +117,7 @@ namespace backtracexx
 		::GetModuleFileNameA( reinterpret_cast< ::HMODULE >( mbi.AllocationBase ), moduleName, sizeof( moduleName ) );
 		if ( mbi.Protect & PAGE_NOACCESS )
 			return false;
-		frame.moduleBaseAddress = reinterpret_cast< unsigned long >( mbi.AllocationBase );
+		frame.moduleBaseAddress = mbi.AllocationBase;
 		frame.moduleName = moduleName;
 		int const MaxSymbolNameLength = 8192;
 		::BYTE symbolBuffer[ sizeof( ::IMAGEHLP_SYMBOL64 ) + MaxSymbolNameLength ];
@@ -124,7 +128,7 @@ namespace backtracexx
 			reinterpret_cast< ::DWORD64 >( mbi.AllocationBase ), 0 ) )
 		{
 			::DWORD64 displacement;
-			if ( ::SymGetSymFromAddr64( ::GetCurrentProcess(), static_cast< ::DWORD64 >( frame.address ),
+			if ( ::SymGetSymFromAddr64( ::GetCurrentProcess(), reinterpret_cast< ::DWORD64 >( frame.address ),
 				&displacement, symbol ) )
 			{
 				frame.symbol = symbol->Name;
@@ -132,7 +136,8 @@ namespace backtracexx
 				::IMAGEHLP_LINE64 line;
 				line.SizeOfStruct = sizeof( ::IMAGEHLP_LINE64 );
 				::DWORD lineDisplacement;
-				if ( ::SymGetLineFromAddr64( ::GetCurrentProcess(), frame.address, &lineDisplacement, &line ) )
+				if ( ::SymGetLineFromAddr64( ::GetCurrentProcess(), reinterpret_cast< ::DWORD64 >( frame.address ),
+					&lineDisplacement, &line ) )
 				{
 					frame.fileName = line.FileName;
 					frame.lineNumber = line.LineNumber;
@@ -145,7 +150,7 @@ namespace backtracexx
 
 #endif
 
-	Frame::Frame( unsigned long address )
+	Frame::Frame( void const* address )
 	:
 		address( address ), displacement(), lineNumber()
 	{
@@ -153,7 +158,8 @@ namespace backtracexx
 
 	Trace scan( ::PCONTEXT ctx )
 	{
-#if defined( __GNUC__ )
+
+#if defined( __linux__ )
 
 		TraceHelper th;
 		//
@@ -162,25 +168,36 @@ namespace backtracexx
 		_Unwind_Backtrace( reinterpret_cast< _Unwind_Trace_Fn >( helper ), &th );
 		return th.trace;
 
-#elif defined( _MSC_VER ) && defined( WIN32 )
+#elif defined( WIN32 ) || defined( WIN64 )
 
 		Trace trace;
 
 		::HANDLE process = ::GetCurrentProcess();
 		::SymInitialize( process, 0, FALSE );
 		::SymSetOptions( ::SymGetOptions() | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES );
-		::CONTEXT context = { 0 };
-		::STACKFRAME64 stackFrame = { 0 };
+		::CONTEXT context;
+		::memset( &context, 0, sizeof( context ) );
+		::STACKFRAME64 stackFrame;
+		::memset( &stackFrame, 0, sizeof( stackFrame ) );
 		stackFrame.AddrPC.Mode = stackFrame.AddrFrame.Mode = stackFrame.AddrStack.Mode = AddrModeFlat;
 		if ( ctx )
 		{
 			context = *ctx;
-			Frame frame( context.Eip );
+
+#if defined( __LP64__ ) || defined ( __MINGW64__ )
+			Frame frame( reinterpret_cast< void const* >( context.Rip ) );
+#else
+			Frame frame( reinterpret_cast< void const* >( static_cast< ::DWORD64 >( context.Eip ) ) );
+#endif
+
 			lookupSymbol( frame );
 			trace.push_back( frame );
 		}
 		else
 		{
+
+#if defined( _MSC_VER )
+#if defined( WIN32 )
 			__asm
 			{
 				call $ + 5;
@@ -189,14 +206,29 @@ namespace backtracexx
 				mov context.Esp, esp;
 				mov context.Ebp, ebp;
 			}
+#else
+#error "win64 needs external assembly."
+#endif
+#else
+#error "win32/64 gcc implementation not finished yet."
+#endif
+
 		}
+
+#if defined( __LP64__ ) || defined ( __MINGW64__ )
+		stackFrame.AddrPC.Offset = context.Rip;
+		stackFrame.AddrStack.Offset = context.Rsp;
+		stackFrame.AddrFrame.Offset = context.Rbp;
+#else
 		stackFrame.AddrPC.Offset = context.Eip;
 		stackFrame.AddrStack.Offset = context.Esp;
 		stackFrame.AddrFrame.Offset = context.Ebp;
+#endif
+
 		while ( ::StackWalk64( IMAGE_FILE_MACHINE_I386, process, ::GetCurrentThread(),
 			&stackFrame, &context, 0, ::SymFunctionTableAccess64, ::SymGetModuleBase64, 0 ) )
 		{
-			unsigned long offset = static_cast< unsigned long >( stackFrame.AddrReturn.Offset );
+			void const* offset = reinterpret_cast< void const* >( stackFrame.AddrReturn.Offset );
 			//
 			//	the deepest frame pointer and return address of the process
 			//	call chain are zeroed by kernel32.dll during process startup,
@@ -212,6 +244,7 @@ namespace backtracexx
 		return trace;
 
 #endif
+
 	}
 
 	std::ostream& operator << ( std::ostream& os, Trace const& t )
