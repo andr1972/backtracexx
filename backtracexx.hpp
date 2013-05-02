@@ -3,7 +3,7 @@
 
 #include <iosfwd>
 #include <string>
-#include <vector>
+#include <list>
 
 #if defined( WIN32 ) || defined( WIN64 )
 
@@ -39,7 +39,7 @@ namespace backtracexx
 		bool signalTrampoline;
 	};
 
-	typedef std::vector< Frame > Trace;
+	typedef std::list< Frame > Trace;
 
 	//
 	//	ex == 0, scan() stack from current frame.
