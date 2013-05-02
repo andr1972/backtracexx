@@ -22,7 +22,22 @@ namespace backtracexx
 #elif defined( __alpha__ )
 			ip -= 4;
 #elif defined( __i386__ ) || defined( __x86_64__ )
-			// TODO: analysis of complex addressing forms (see intel/24319102.pdf).
+			//
+			// TODO:
+			//	analysis of complex addressing forms (see intel/24319102.pdf).
+			//	rework code to cover all cases.
+			//
+			// call, near, relative
+			if ( ip[ -5 ] == 0xe8 )
+				return ( ip - 5 );
+			// call, near, absolute indirect
+			if ( ip[ -2 ] == 0xff )
+			{
+				if ( ( ip[ -1 ] & 0xf8 ) == 0xd0 ) // call *%reg
+					return ( ip - 2 );
+				if ( ( ip[ -1 ] & 0xf8 ) == 0x10 ) // call *(%reg)
+					return ( ip - 2 );
+			}
 #endif
 			return ip;
 		}
