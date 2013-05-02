@@ -1,4 +1,6 @@
 #include "backtracexx.hpp"
+#include <iomanip>
+#include <iostream>
 
 #if defined( __GNUC__ )
 #include <cxxabi.h>
@@ -155,37 +157,56 @@ namespace backtracexx
 
 #elif defined( _MSC_VER ) && defined( WIN32 )
 
-		::SymInitialize( ::GetCurrentProcess(), 0, FALSE );
+		::HANDLE process = ::GetCurrentProcess();
+		::SymInitialize( process, 0, FALSE );
 		::SymSetOptions( ::SymGetOptions() | SYMOPT_UNDNAME );
-		struct StackFrame
+		::CONTEXT context = { 0 };
+		::STACKFRAME64 stackFrame = { 0 };
+		stackFrame.AddrPC.Mode = stackFrame.AddrFrame.Mode = stackFrame.AddrStack.Mode = AddrModeFlat;
+		__asm
 		{
-			StackFrame* previousFrame;
-			unsigned long returnAddress;
-		};
-		StackFrame const* stackFrame;
-		__asm mov stackFrame, ebp;
-		//
-		//	the deepest frame pointer and return address of the process
-		//	call chain are zeroed by kernel32.dll during process startup:
-		//
-		//	BaseProcessStartThunk:
-		//		xor		ebp,ebp
-		//		push	eax
-		//		push	0x0
-		//		jmp		KERNEL32!BaseProcessStart
-		//
-		while ( stackFrame->returnAddress )
+			call $ + 5;
+			pop eax;
+			mov context.Eip, eax;
+			mov context.Esp, esp;
+			mov context.Ebp, ebp;
+			mov stackFrame.AddrPC, eax;
+			mov stackFrame.AddrStack, esp;
+			mov stackFrame.AddrFrame, ebp;
+		}
+		while ( ::StackWalk64( IMAGE_FILE_MACHINE_I386, process, ::GetCurrentThread(),
+			&stackFrame, &context, 0, ::SymFunctionTableAccess64, ::SymGetModuleBase64, 0 ) )
 		{
 			Frame frame;
-			frame.address = caller( stackFrame->returnAddress );
+			frame.address = static_cast< unsigned long >( stackFrame.AddrReturn.Offset );
+			//
+			//	the deepest frame pointer and return address of the process
+			//	call chain are zeroed by kernel32.dll during process startup,
+			//	so exclude such frame from trace and exit from loop.
+			//
+			if ( !frame.address )
+				break;
 			lookupSymbol( frame );
 			trace.push_back( frame );
-			stackFrame = stackFrame->previousFrame;
 		}
-		::SymCleanup( ::GetCurrentProcess() );
+		::SymCleanup( process );
 
 #endif
 
 		return trace;
+	}
+
+	std::ostream& operator << ( std::ostream& os, Trace const& t )
+	{
+		os << "=== backtrace ====" << std::endl;
+		for ( backtracexx::Trace::const_iterator i = t.begin(); i != t.end(); ++i )
+		{
+			backtracexx::Frame const& f = *i;
+			os	<< std::showbase << std::showpoint << std::hex << std::setw( 16 ) << f.address
+				<< " : " << ( f.symbol.empty() ? "<unresolved symbol>" : f.symbol )
+				<< "+" << f.displacement << " [" << f.module << "]" << std::endl;
+		}
+		os << "==================" << std::endl;
+		return os;
 	}
 }

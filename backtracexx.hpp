@@ -1,12 +1,23 @@
 #ifndef backtracexx_hpp
 #define backtracexx_hpp
 
+#include <iosfwd>
 #include <string>
 #include <vector>
 
+#if defined( WIN32 ) || defined( WIN64 )
+#ifdef BACKTRACEXX_EXPORTS
+#define DEBUGTOOLS_EXPORT	__declspec( dllexport )
+#else
+#define DEBUGTOOLS_EXPORT	__declspec( dllimport )
+#endif
+#else
+#define DEBUGTOOLS_EXPORT	__attribute__(( visibility( "default" ) ))
+#endif
+
 namespace backtracexx
 {
-	struct Frame
+	struct DEBUGTOOLS_EXPORT Frame
 	{
 		Frame();
 
@@ -19,7 +30,8 @@ namespace backtracexx
 
 	typedef std::vector< Frame > Trace;
 
-	Trace scan();
+	DEBUGTOOLS_EXPORT Trace scan();
+	DEBUGTOOLS_EXPORT std::ostream& operator << ( std::ostream&, Trace const& );
 }
 
 #endif
