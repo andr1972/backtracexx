@@ -21,7 +21,6 @@ void zoo()
 		volatile int* p = 0;
 		*p = 0;
 	}
-	throw std::runtime_error( "still alive?" );
 }
 
 void bar( void ( *f )() )
@@ -29,21 +28,24 @@ void bar( void ( *f )() )
 	f();
 }
 
-void foo()
+void* foo( void* )
 {
 	bar( &zoo );
+	pthread_exit( 0 );
 }
 
-int main()
+int main( int argc, char const* const* argv )
 {
 	signal( SIGSEGV, signalHandler );
-	try
+	if ( argc > 1 )
 	{
-		foo();
+		pthread_t t;
+		pthread_create( &t, 0, &foo, 0 );
+		pthread_join( t, 0 );
 	}
-	catch ( std::exception const& e )
-	{
-		std::cerr << e.what() << std::endl;
+	else
+	{	
+		foo( 0 );
 	}
 	return 0;
 }
