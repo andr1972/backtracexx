@@ -72,14 +72,23 @@ namespace backtracexx
 
 		_Unwind_Reason_Code helper( struct _Unwind_Context* ctx, Trace* trace )
 		{
-			int beforeInsn;
-			_Unwind_Ptr ip = _Unwind_GetIPInfo( ctx, &beforeInsn );
 			Frame frame;
-			frame.address = ip;
+			_Unwind_Ptr ip;
+
+#if ( __GNUC__ >= 4 ) && ( __GNUC_PATCHLEVEL__ >= 2 )
+
+			int beforeInsn;
+			ip = _Unwind_GetIPInfo( ctx, &beforeInsn );
 			if ( beforeInsn )
 				frame.signalTrampoline = true;
-			else
-				frame.address = frame.address;
+
+#else
+
+			ip = _Unwind_GetIP( ctx );
+
+#endif
+
+			frame.address = ip;
 			lookupSymbol( frame );
 			trace->push_back( frame );
 			return _URC_NO_REASON;
@@ -131,7 +140,7 @@ namespace backtracexx
 
 	Frame::Frame()
 	:
-		address(), displacement(), lineNumber(), signalTrampoline()
+		address(), displacement(), lineNumber(), signalTrampoline( boost::logic::indeterminate )
 	{
 	}
 

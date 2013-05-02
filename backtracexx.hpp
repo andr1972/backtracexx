@@ -1,6 +1,7 @@
 #ifndef backtracexx_hpp
 #define backtracexx_hpp
 
+#include <boost/logic/tribool.hpp>
 #include <iosfwd>
 #include <string>
 #include <list>
@@ -42,7 +43,7 @@ namespace backtracexx
 		unsigned long moduleBaseAddress;
 		std::string fileName;
 		unsigned long lineNumber;
-		bool signalTrampoline;
+		boost::logic::tribool signalTrampoline;
 	};
 
 	typedef std::list< Frame > Trace;
