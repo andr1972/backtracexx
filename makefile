@@ -9,7 +9,7 @@ libbacktracexx.so: backtracexx.hpp backtracexx.cpp
 
 example: example.cpp libbacktracexx.so
 	$(CXX) example.cpp -o example ./libbacktracexx.so $(CXXFLAGS) \
-	-O1 -rdynamic -funwind-tables
+	-O1 -funwind-tables -Wl,-export-dynamic
 
 clean:
 	rm -f libbacktracexx.so example
