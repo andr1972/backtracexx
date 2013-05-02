@@ -1,16 +1,15 @@
 #include "backtracexx.hpp"
-#include <csetjmp>
+
 #include <csignal>
 #include <iostream>
 #include <iterator>
-
-jmp_buf context;
+#include <stdexcept>
 
 void signalHandler( int signalNumber )
 {
 	backtracexx::symbolic_backtrace_type s = backtracexx::symbols( backtracexx::scan() );
-	std::copy(s.begin(), s.end(), std::ostream_iterator< std::string >( std::cout, "\n" ) );
-	longjmp( context, 1 );
+	std::copy( s.begin(), s.end(), std::ostream_iterator< std::string >( std::cout, "\n" ) );
+	throw std::runtime_error( "fatality." );
 }
 
 void zoo()
@@ -32,9 +31,13 @@ void foo()
 int main()
 {
 	signal( SIGSEGV, signalHandler );
-	if ( setjmp( context ) == 0 )
+	try
 	{
 		foo();
+	}
+	catch ( std::exception const& e )
+	{
+		std::cerr << e.what() << std::endl;
 	}
 	return 0;
 }

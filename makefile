@@ -5,11 +5,11 @@ all: libbacktracexx.so example
 
 libbacktracexx.so: backtracexx.hpp backtracexx.cpp
 	$(CXX) backtracexx.cpp -o libbacktracexx.so -shared -ldl $(CXXFLAGS) \
-	-O3 -fpic -funwind-tables -fno-exceptions -fno-rtti
+	-O3 -fpic -funwind-tables -fno-exceptions -fno-rtti -s
 
 example: example.cpp libbacktracexx.so
 	$(CXX) example.cpp -o example ./libbacktracexx.so $(CXXFLAGS) \
-	-O1 -funwind-tables -Wl,-export-dynamic
+	-O1 -Wl,-export-dynamic -s
 
 clean:
 	rm -f libbacktracexx.so example
