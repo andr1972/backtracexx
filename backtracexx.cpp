@@ -10,9 +10,20 @@ namespace backtracexx
 {
 	namespace
 	{
-		unsigned char const* callpoint( unsigned char const* ip )
+		// extract caller's address from callee's return point.
+		unsigned char const* caller( unsigned char const* ip )
 		{
-			// not implemented yet.
+#if defined( __powerpc__ ) && !defined( __powerpc64__ )
+			// powerpc64 not tested.
+			ip -= 4;
+#elif defined( __sparc__ )
+			// the same for sparc v7/8/9.
+			ip -= 8;
+#elif defined( __alpha__ )
+			// alpha not tested yet.
+#elif defined( __i386__ ) || defined( __x86_64__ )
+			// TODO: analysis of complex addressing forms (see intel/24319102.pdf).
+#endif
 			return ip;
 		}
 
@@ -20,7 +31,7 @@ namespace backtracexx
 		{
 			_Unwind_Ptr ip = _Unwind_GetIP( ctx );
 			reinterpret_cast< raw_backtrace_type* >( arg )->push_back(
-				callpoint( reinterpret_cast< unsigned char const* >( ip ) ) );
+				caller( reinterpret_cast< unsigned char const* >( ip ) ) );
 			return _URC_NO_REASON;
 		}
 	}
