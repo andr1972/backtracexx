@@ -231,14 +231,17 @@ namespace backtracexx
 		stackFrame.AddrPC.Offset = context.Rip;
 		stackFrame.AddrStack.Offset = context.Rsp;
 		stackFrame.AddrFrame.Offset = context.Rbp;
+
+		while ( ::StackWalk64( IMAGE_FILE_MACHINE_AMD64,
 #else
 		stackFrame.AddrPC.Offset = context.Eip;
 		stackFrame.AddrStack.Offset = context.Esp;
 		stackFrame.AddrFrame.Offset = context.Ebp;
-#endif
 
-		while ( ::StackWalk64( IMAGE_FILE_MACHINE_I386, process, ::GetCurrentThread(),
-			&stackFrame, &context, 0, ::SymFunctionTableAccess64, ::SymGetModuleBase64, 0 ) )
+		while ( ::StackWalk64( IMAGE_FILE_MACHINE_I386,
+#endif
+			process, ::GetCurrentThread(), &stackFrame, &context, 0,
+			::SymFunctionTableAccess64, ::SymGetModuleBase64, 0 ) )
 		{
 			void const* offset = reinterpret_cast< void const* >( stackFrame.AddrReturn.Offset );
 			//
