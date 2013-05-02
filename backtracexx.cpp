@@ -90,7 +90,8 @@ namespace backtracexx
 							free( demangled );
 					}
 				}
-				os << " from " << info.dli_fname;
+				if ( info.dli_fname && strlen( info.dli_fname ) )
+					os << " from " << info.dli_fname;
 			}
 			else
 				os << "??";
