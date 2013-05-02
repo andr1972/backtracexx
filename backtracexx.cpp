@@ -70,8 +70,9 @@ namespace backtracexx
 			Dl_info info;
 			if ( ::dladdr( reinterpret_cast< void* >( frame.address ), &info ) )
 			{
+				frame.moduleBaseAddress = reinterpret_cast< unsigned long >( info.dli_fbase );
 				if ( info.dli_fname && strlen( info.dli_fname ) )
-					frame.module = info.dli_fname;
+					frame.moduleName = info.dli_fname;
 				if ( info.dli_saddr )
 				{
 					frame.displacement = frame.address - reinterpret_cast< unsigned long >( info.dli_saddr );
@@ -114,7 +115,8 @@ namespace backtracexx
 			::VirtualQuery( reinterpret_cast< ::LPCVOID >( frame.address ), &mbi, sizeof( mbi ) );
 			::CHAR moduleName[ MAX_PATH ];
 			::GetModuleFileNameA( reinterpret_cast< ::HMODULE >( mbi.AllocationBase ), moduleName, sizeof( moduleName ) );
-			frame.module = moduleName;
+			frame.moduleBaseAddress = mbi.AllocationBase;
+			frame.moduleName = moduleName;
 			int const MaxSymbolNameLength = 8192;
 			::BYTE symbolBuffer[ sizeof( ::IMAGEHLP_SYMBOL64 ) + MaxSymbolNameLength ];
 			::PIMAGEHLP_SYMBOL64 symbol = reinterpret_cast< ::PIMAGEHLP_SYMBOL64 >( symbolBuffer );
@@ -213,12 +215,14 @@ namespace backtracexx
 		for ( backtracexx::Trace::const_iterator i = t.begin(); i != t.end(); ++i )
 		{
 			backtracexx::Frame const& f = *i;
-			os	<< std::showbase << std::showpoint << std::hex << std::setw( 16 ) << f.address
-				<< " : " << ( f.symbol.empty() ? "<unresolved symbol>" : f.symbol )
-				<< "+" << f.displacement;
+			os << std::showbase << std::hex << std::setw( 16 ) << f.address << " : ";
+			if ( f.symbol.empty() )
+				os << '?';
+			else
+				os << f.symbol << '+' << f.displacement;
 			if ( f.signalTrampoline )
 				os << " [signal trampoline]";
-			os << " [" << f.module << "]" << std::endl;
+			os << " [" << f.moduleName << " @ " << std::showbase << std::hex << f.moduleBaseAddress << " ]" << std::endl;
 		}
 		os << "==================" << std::endl;
 		return os;
