@@ -9,14 +9,15 @@
 //	- use libdwarf for printing line info for ELF objects.
 //
 
-#if defined( __linux__ )
+#if defined( __GNUC__ )
 #include <cxxabi.h>
+#if defined( __linux__ )
 #include <dlfcn.h>
+#endif
 #include <unwind.h>
 #elif defined( WIN32 ) || defined( WIN64 )
 #include <windows.h>
 #include <winnt.h>
-#include <dbghelp.h>
 #else
 #error "not testet yet."
 #endif
@@ -34,16 +35,18 @@
 //
 
 #if defined( _MSC_VER )
+#include <dbghelp.h>
 #pragma comment( lib, "dbghelp" )
 #endif
 
 namespace backtracexx
 {
-
-#if defined( __linux__ )
+#if defined( __GNUC__ )
 
 	bool lookupSymbol( Frame& frame )
 	{
+#if defined( __linux__ )
+
 		Dl_info info;
 		if ( ::dladdr( frame.address, &info ) )
 		{
@@ -69,6 +72,8 @@ namespace backtracexx
 			}
 			return true;
 		}
+
+#endif
 		return false;
 	}
 
@@ -106,7 +111,7 @@ namespace backtracexx
 		}
 	}
 
-#elif defined( WIN32 ) || defined( WIN64 )
+#elif defined( _MSC_VER )
 
 	bool lookupSymbol( Frame& frame )
 	{
@@ -158,8 +163,7 @@ namespace backtracexx
 
 	Trace scan( ::PCONTEXT ctx )
 	{
-
-#if defined( __linux__ )
+#if defined( __GNUC__ )
 
 		TraceHelper th;
 		//
@@ -168,7 +172,7 @@ namespace backtracexx
 		_Unwind_Backtrace( reinterpret_cast< _Unwind_Trace_Fn >( helper ), &th );
 		return th.trace;
 
-#elif defined( WIN32 ) || defined( WIN64 )
+#elif defined( _MSC_VER )
 
 		Trace trace;
 
@@ -183,20 +187,16 @@ namespace backtracexx
 		if ( ctx )
 		{
 			context = *ctx;
-
-#if defined( __LP64__ ) || defined ( __MINGW64__ )
+#if defined( WIN64 )
 			Frame frame( reinterpret_cast< void const* >( context.Rip ) );
 #else
 			Frame frame( reinterpret_cast< void const* >( static_cast< ::DWORD64 >( context.Eip ) ) );
 #endif
-
 			lookupSymbol( frame );
 			trace.push_back( frame );
 		}
 		else
 		{
-
-#if defined( _MSC_VER )
 #if defined( WIN32 )
 			__asm
 			{
@@ -209,25 +209,9 @@ namespace backtracexx
 #else
 #error "msvc/win64 needs external assembly."
 #endif
-#else
-#if defined( __MINGW64__ )
-			asm ( "foo: movq $foo, %0" : "=g" ( context.Rip ) );
-			register ::DWORD64 rsp asm( "rsp" );
-			context.Rsp = rsp;
-			register ::DWORD64 rbp asm( "rbp" );
-			context.Rbp = rbp;
-#else
-			asm ( "foo: movl $foo, %0" : "=g" ( context.Eip ) );
-			register ::DWORD esp asm( "esp" );
-			context.Esp = esp;
-			register ::DWORD ebp asm( "ebp" );
-			context.Ebp = ebp;
-#endif
-#endif
-
 		}
 
-#if defined( __LP64__ ) || defined ( __MINGW64__ )
+#if defined( WIN64 )
 		stackFrame.AddrPC.Offset = context.Rip;
 		stackFrame.AddrStack.Offset = context.Rsp;
 		stackFrame.AddrFrame.Offset = context.Rbp;
@@ -259,7 +243,6 @@ namespace backtracexx
 		return trace;
 
 #endif
-
 	}
 
 	std::ostream& operator << ( std::ostream& os, Trace const& t )
