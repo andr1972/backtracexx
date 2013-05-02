@@ -7,17 +7,17 @@
 
 #if defined( WIN32 ) || defined( WIN64 )
 #ifdef BACKTRACEXX_EXPORTS
-#define DEBUGTOOLS_EXPORT	__declspec( dllexport )
+#define BACKTRACEXX_EXPORT	__declspec( dllexport )
 #else
-#define DEBUGTOOLS_EXPORT	__declspec( dllimport )
+#define BACKTRACEXX_EXPORT	__declspec( dllimport )
 #endif
 #else
-#define DEBUGTOOLS_EXPORT	__attribute__(( visibility( "default" ) ))
+#define BACKTRACEXX_EXPORT	__attribute__(( visibility( "default" ) ))
 #endif
 
 namespace backtracexx
 {
-	struct DEBUGTOOLS_EXPORT Frame
+	struct BACKTRACEXX_EXPORT Frame
 	{
 		Frame();
 
@@ -30,8 +30,8 @@ namespace backtracexx
 
 	typedef std::vector< Frame > Trace;
 
-	DEBUGTOOLS_EXPORT Trace scan();
-	DEBUGTOOLS_EXPORT std::ostream& operator << ( std::ostream&, Trace const& );
+	BACKTRACEXX_EXPORT Trace scan();
+	BACKTRACEXX_EXPORT std::ostream& operator << ( std::ostream&, Trace const& );
 }
 
 #endif
