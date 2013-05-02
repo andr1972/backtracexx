@@ -1,6 +1,8 @@
 #include "backtracexx.hpp"
 #include <iomanip>
 #include <iostream>
+#include <cstdlib>
+#include <cstring>
 
 //
 //	TODO:
@@ -43,7 +45,7 @@ namespace backtracexx
 			if ( ::dladdr( reinterpret_cast< void* >( frame.address ), &info ) )
 			{
 				frame.moduleBaseAddress = reinterpret_cast< unsigned long >( info.dli_fbase );
-				if ( info.dli_fname && strlen( info.dli_fname ) )
+				if ( info.dli_fname && std::strlen( info.dli_fname ) )
 					frame.moduleName = info.dli_fname;
 				if ( info.dli_saddr )
 				{
@@ -55,7 +57,7 @@ namespace backtracexx
 						if ( status == 0 )
 						{
 							frame.symbol = demangled;
-							free( demangled );
+							std::free( demangled );
 						}
 						else
 							frame.symbol = info.dli_sname;
