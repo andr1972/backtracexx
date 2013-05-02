@@ -1,8 +1,8 @@
 # win32 target
-#CXX := i486-mingw32-g++
+CXX := i486-mingw32-g++
 
 # win64 target
-CXX := x86_64-mingw32-g++
+#CXX := x86_64-mingw32-g++
 
 CXXFLAGS := -O1 -Wall -Werror -pedantic
 
