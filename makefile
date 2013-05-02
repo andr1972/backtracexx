@@ -1,15 +1,13 @@
 CXX := g++
-CXXFLAGS += -Wall -Werror -pedantic
+CXXFLAGS := -O1 -Wall -Werror -pedantic
+LDXXFLAGS := -Wl,-export-dynamic -s -ldl -static-libgcc
 
-all: libbacktracexx.so example
+all: example
 
-libbacktracexx.so: backtracexx.hpp backtracexx.cpp
-	$(CXX) backtracexx.cpp -o libbacktracexx.so -shared -ldl $(CXXFLAGS) \
-	-O3 -fpic -funwind-tables -fno-exceptions -fno-rtti -s
-
-example: example.cpp libbacktracexx.so
-	$(CXX) example.cpp -o example ./libbacktracexx.so $(CXXFLAGS) \
-	-O1 -Wl,-export-dynamic -s
+example: example.cpp backtracexx.hpp backtracexx.cpp
+	$(CXX) $(CXXFLAGS) backtracexx.cpp -c
+	$(CXX) $(CXXFLAGS) example.cpp -c
+	$(CXX) example.o backtracexx.o -o example $(LDXXFLAGS)
 
 clean:
-	rm -f libbacktracexx.so example
+	rm -f *.o *.s *.ii example

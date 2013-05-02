@@ -10,8 +10,14 @@ jmp_buf context;
 
 void signalHandler( int signalNumber )
 {
-	backtracexx::symbolic_backtrace_type s = backtracexx::symbols( backtracexx::scan() );
-	std::copy( s.begin(), s.end(), std::ostream_iterator< std::string >( std::cout, "\n" ) );
+	backtracexx::Trace t = backtracexx::scan();
+	for ( backtracexx::Trace::const_iterator i = t.begin(); i != t.end(); ++i )
+	{
+		backtracexx::Frame const& f = *i;
+		std::printf( "0x%016lx : %s+0x%lx [%s]\n", f.address,
+			( f.symbol.empty() ? "<unresolved symbol>" : f.symbol.c_str() ),
+			f.displacement, f.module.c_str() );
+	}
 	longjmp( context, 1 );
 }
 

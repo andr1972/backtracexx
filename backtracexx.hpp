@@ -1,20 +1,25 @@
 #ifndef backtracexx_hpp
 #define backtracexx_hpp
 
-#include <list>
 #include <string>
-#include <utility>
+#include <vector>
 
 namespace backtracexx
 {
-	typedef std::pair< void const*,
-		bool /* signal frame */ > unwind_point_type;
+	struct Frame
+	{
+		Frame();
 
-	typedef std::list< unwind_point_type > raw_backtrace_type;
-	typedef std::list< std::string > symbolic_backtrace_type;
+		unsigned long address;
+		std::string symbol;
+		unsigned long displacement;
+		std::string module;
+		bool signalTrampoline;
+	};
 
-	raw_backtrace_type scan();
-	symbolic_backtrace_type symbols( raw_backtrace_type const& );
+	typedef std::vector< Frame > Trace;
+
+	Trace scan();
 }
 
 #endif
