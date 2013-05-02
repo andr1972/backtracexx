@@ -34,44 +34,10 @@ namespace backtracexx
 {
 	namespace
 	{
-		//
-		//	extract caller's address from callee's return point.
-		//
-		unsigned long caller( unsigned long ret )
-		{
-			unsigned char const* ip = reinterpret_cast< unsigned char const* >( ret );
-#if defined( __powerpc__ ) && !defined( __powerpc64__ )
-			//	powerpc64 not tested.
-			ip -= 4;
-#elif defined( __sparc__ )
-			//	the same for sparc v7/8/9.
-			ip -= 8;
-#elif defined( __alpha__ )
-			ip -= 4;
-#elif defined( __i386__ ) || defined( __x86_64__ ) || defined( WIN32 )
-			//
-			//	TODO:
-			//		analysis of complex addressing forms (see intel/24319102.pdf).
-			//		rework code to cover all cases.
-			//
-			//	call, near, relative
-			if ( ip[ -5 ] == 0xe8 )
-				return ( ret - 5 );
-			//	call, near, absolute indirect
-			if ( ip[ -2 ] == 0xff )
-			{
-				if ( ( ip[ -1 ] & 0xf8 ) == 0xd0 )	//	call *%reg
-					return ( ret - 2 );
-				if ( ( ip[ -1 ] & 0xf8 ) == 0x10 )	//	call *(%reg)
-					return ( ret - 2 );
-			}
-#endif
-			return ret;
-		}
 
 #if defined( __GNUC__ )
 
-		void lookupSymbol( Frame& frame )
+		bool lookupSymbol( Frame& frame )
 		{
 			Dl_info info;
 			if ( ::dladdr( reinterpret_cast< void* >( frame.address ), &info ) )
@@ -95,7 +61,9 @@ namespace backtracexx
 							frame.symbol = info.dli_sname;
 					}
 				}
+				return true;
 			}
+			return false;
 		}
 
 		_Unwind_Reason_Code helper( struct _Unwind_Context* ctx, Trace* trace )
@@ -107,7 +75,7 @@ namespace backtracexx
 			if ( beforeInsn )
 				frame.signalTrampoline = true;
 			else
-				frame.address = caller( frame.address );
+				frame.address = frame.address;
 			lookupSymbol( frame );
 			trace->push_back( frame );
 			return _URC_NO_REASON;
@@ -115,12 +83,15 @@ namespace backtracexx
 
 #elif defined( _MSC_VER ) && defined( WIN32 )
 
-		void lookupSymbol( Frame& frame )
+		bool lookupSymbol( Frame& frame )
 		{
 			::MEMORY_BASIC_INFORMATION mbi;
-			::VirtualQuery( reinterpret_cast< ::LPCVOID >( frame.address ), &mbi, sizeof( mbi ) );
+			if ( !::VirtualQuery( reinterpret_cast< ::LPCVOID >( frame.address ), &mbi, sizeof( mbi ) ) )
+				return false;
 			::CHAR moduleName[ MAX_PATH ];
 			::GetModuleFileNameA( reinterpret_cast< ::HMODULE >( mbi.AllocationBase ), moduleName, sizeof( moduleName ) );
+			if ( mbi.Protect & PAGE_NOACCESS )
+				return false;
 			frame.moduleBaseAddress = reinterpret_cast< unsigned long >( mbi.AllocationBase );
 			frame.moduleName = moduleName;
 			int const MaxSymbolNameLength = 8192;
@@ -148,6 +119,7 @@ namespace backtracexx
 				}
 				::SymUnloadModule64( ::GetCurrentProcess(), reinterpret_cast< ::DWORD64 >( mbi.AllocationBase ) );
 			}
+			return true;
 		}
 
 #endif
@@ -203,7 +175,6 @@ namespace backtracexx
 		while ( ::StackWalk64( IMAGE_FILE_MACHINE_I386, process, ::GetCurrentThread(),
 			&stackFrame, &context, 0, ::SymFunctionTableAccess64, ::SymGetModuleBase64, 0 ) )
 		{
-			Frame frame;
 			unsigned long offset = static_cast< unsigned long >( stackFrame.AddrReturn.Offset );
 			//
 			//	the deepest frame pointer and return address of the process
@@ -212,9 +183,10 @@ namespace backtracexx
 			//
 			if ( !offset )
 				break;
-			frame.address = caller( offset );
-			lookupSymbol( frame );
-			trace.push_back( frame );
+			Frame frame;
+			frame.address = offset;
+			if ( lookupSymbol( frame ) )
+				trace.push_back( frame );
 		}
 		::SymCleanup( process );
 
