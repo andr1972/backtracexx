@@ -53,22 +53,28 @@ namespace backtracexx
 		{
 			os.str( std::string() );
 			Dl_info info;
+			os << std::setw( 18 ) << *i << " : ";
 			if ( dladdr( const_cast< void* >( *i ), &info ) )
 			{
-				long offset = reinterpret_cast< long >( *i ) - reinterpret_cast< long >( info.dli_saddr );
-				int status;
-				char* demangled = abi::__cxa_demangle( info.dli_sname, 0, 0, &status );
-				if ( status != -1 )
+				if ( !info.dli_saddr )
+					// the image containing address is found, but no nearest symbol was found.
+					os << "??";
+				else
 				{
-					os	<< std::setw( 18 ) << *i << " : "
-						<< ( ( status == 0 ) ? demangled : info.dli_sname )
-						<< '+' << offset << " from " << info.dli_fname;
-					if ( status == 0 )
-						free( demangled );
+					int status;
+					char* demangled = abi::__cxa_demangle( info.dli_sname, 0, 0, &status );
+					if ( status != -1 )
+					{
+						long offset = reinterpret_cast< long >( *i ) - reinterpret_cast< long >( info.dli_saddr );
+						os << ( ( status == 0 ) ? demangled : info.dli_sname ) << '+' << offset;
+						if ( status == 0 )
+							free( demangled );
+					}
 				}
+				os << " from " << info.dli_fname;
 			}
 			else
-				os << std::setw( 18 ) << *i << " ??";
+				os << "??";
 			sbt.push_back( os.str() );
 		}
 		return sbt;
