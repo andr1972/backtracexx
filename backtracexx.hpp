@@ -19,7 +19,7 @@
 #else
 
 #define BACKTRACEXX_EXPORT	__attribute__(( visibility( "default" ) ))
-typedef void* PEXCEPTION_POINTERS;
+typedef void* PCONTEXT;
 
 #endif
 
@@ -42,7 +42,7 @@ namespace backtracexx
 	//	ex == 0, scan() stack from current frame.
 	//	ex != 0, scan() stack from specified context (e.g. passed from SEH handler).
 	//
-	BACKTRACEXX_EXPORT Trace scan( ::PEXCEPTION_POINTERS /* not used on linux */ ex = 0 );
+	BACKTRACEXX_EXPORT Trace scan( ::PCONTEXT /* not used on linux */ ctx = 0 );
 	BACKTRACEXX_EXPORT std::ostream& operator << ( std::ostream&, Trace const& );
 }
 

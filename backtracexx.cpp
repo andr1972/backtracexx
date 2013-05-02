@@ -143,7 +143,7 @@ namespace backtracexx
 	{
 	}
 
-	Trace scan( PEXCEPTION_POINTERS ex )
+	Trace scan( ::PCONTEXT ctx )
 	{
 		Trace trace;
 
@@ -162,9 +162,9 @@ namespace backtracexx
 		::CONTEXT context = { 0 };
 		::STACKFRAME64 stackFrame = { 0 };
 		stackFrame.AddrPC.Mode = stackFrame.AddrFrame.Mode = stackFrame.AddrStack.Mode = AddrModeFlat;
-		if ( ex )
+		if ( ctx )
 		{
-			context = *( ex->ContextRecord );
+			context = *ctx;
 			Frame frame;
 			frame.address = context.Eip;
 			lookupSymbol( frame );
