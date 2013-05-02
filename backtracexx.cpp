@@ -4,6 +4,9 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <windows.h>
+#include <winnt.h>
+
 //
 //	TODO:
 //	- use libdwarf for printing line info for ELF objects.

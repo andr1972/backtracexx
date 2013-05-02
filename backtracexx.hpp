@@ -13,8 +13,8 @@
 #define BACKTRACEXX_EXPORT	__declspec( dllimport )
 #endif
 
-#include <windows.h>
-#include <winnt.h>
+struct _CONTEXT;
+typedef struct _CONTEXT* PCONTEXT;
 
 #else
 
