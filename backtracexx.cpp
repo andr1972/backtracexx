@@ -74,7 +74,7 @@ namespace backtracexx
 		{
 			_Unwind_Ptr ip;
 
-#if ( __GNUC__ >= 4 ) && ( __GNUC_PATCHLEVEL__ >= 2 )
+#if ( __GNUC__ >= 4 ) && ( __GNUC_MINOR__ >= 2 )
 
 			int beforeInsn;
 			ip = _Unwind_GetIPInfo( ctx, &beforeInsn );
