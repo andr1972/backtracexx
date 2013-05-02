@@ -1,7 +1,6 @@
 #ifndef backtracexx_hpp
 #define backtracexx_hpp
 
-#include <boost/logic/tribool.hpp>
 #include <iosfwd>
 #include <string>
 #include <list>
@@ -24,11 +23,6 @@ typedef void* PCONTEXT;
 
 #endif
 
-#ifdef BOOST_MSVC
-#pragma warning( push )
-#pragma warning( disable : 4251 )	//	disable warning about dll-interface for boost::logic::tribool.
-#endif 
-
 namespace backtracexx
 {
 	struct BACKTRACEXX_EXPORT Frame
@@ -42,22 +36,17 @@ namespace backtracexx
 		unsigned long moduleBaseAddress;
 		std::string fileName;
 		unsigned long lineNumber;
-		boost::logic::tribool signalTrampoline;
 	};
 
 	typedef std::list< Frame > Trace;
 
 	//
-	//	ex == 0, scan() stack from current frame.
-	//	ex != 0, scan() stack from specified context (e.g. passed from SEH handler).
+	//	ctx == 0, scan() stack from current frame.
+	//	ctx != 0, scan() stack from specified context (e.g. passed from SEH handler).
 	//
 	BACKTRACEXX_EXPORT Trace scan( ::PCONTEXT /* not used on linux */ ctx = 0 );
 	BACKTRACEXX_EXPORT bool lookupSymbol( Frame& );
 	BACKTRACEXX_EXPORT std::ostream& operator << ( std::ostream&, Trace const& );
 }
-
-#ifdef BOOST_MSVC
-#pragma warning( pop )
-#endif
 
 #endif

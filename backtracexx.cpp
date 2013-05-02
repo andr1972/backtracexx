@@ -79,19 +79,8 @@ namespace backtracexx
 
 		_Unwind_Reason_Code helper( struct _Unwind_Context* ctx, TraceHelper* th )
 		{
-			_Unwind_Ptr ip;
-
-#if ( __GNUC__ >= 4 ) && ( __GNUC_MINOR__ >= 2 )
-
-			int beforeInsn;
-			ip = _Unwind_GetIPInfo( ctx, &beforeInsn );
+			_Unwind_Ptr ip = _Unwind_GetIP( ctx );
 			Frame frame( ip );
-			if ( beforeInsn )
-				frame.signalTrampoline = true;
-#else
-			ip = _Unwind_GetIP( ctx );
-			Frame frame( ip );
-#endif
 			lookupSymbol( frame );
 			th->trace.push_back( frame );
 			//
@@ -158,7 +147,7 @@ namespace backtracexx
 
 	Frame::Frame( unsigned long address )
 	:
-		address( address ), displacement(), lineNumber(), signalTrampoline( boost::logic::indeterminate )
+		address( address ), displacement(), lineNumber()
 	{
 	}
 
@@ -236,8 +225,6 @@ namespace backtracexx
 				os << '?';
 			else
 				os << f.symbol << '+' << f.displacement;
-			if ( f.signalTrampoline )
-				os << " [signal trampoline]";
 			os << " [" << f.moduleName << " @ " << std::showbase << std::hex << f.moduleBaseAddress << " ]" << std::endl;
 			if ( !f.fileName.empty() )
 			{
