@@ -42,7 +42,7 @@ namespace backtracexx
 		{
 			os.str( std::string() );
 			Dl_info info;
-			if ( dladdr( *i, &info ) )
+			if ( dladdr( const_cast< void* >( *i ), &info ) )
 			{
 				long offset = reinterpret_cast< long >( *i ) - reinterpret_cast< long >( info.dli_saddr );
 				int status;
