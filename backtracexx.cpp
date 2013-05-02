@@ -4,9 +4,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <windows.h>
-#include <winnt.h>
-
 //
 //	TODO:
 //	- use libdwarf for printing line info for ELF objects.
@@ -17,6 +14,8 @@
 #include <dlfcn.h>
 #include <unwind.h>
 #elif defined( _MSC_VER )
+#include <windows.h>
+#include <winnt.h>
 #pragma warning( disable : 4311 )	//	'reinterpret_cast' : pointer truncation from 'PVOID' to 'unsigned long'
 #pragma warning( disable : 4312 )	//	'reinterpret_cast' : conversion from 'unsigned long' to 'void*' of greater size
 #include <dbghelp.h>
