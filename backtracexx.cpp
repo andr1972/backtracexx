@@ -70,7 +70,14 @@ namespace backtracexx
 
 	namespace
 	{
-		_Unwind_Reason_Code helper( struct _Unwind_Context* ctx, Trace* trace )
+		struct TraceHelper
+		{
+			_Unwind_Ptr prevIp;
+			unsigned recursionDepth;
+			Trace trace;
+		};
+
+		_Unwind_Reason_Code helper( struct _Unwind_Context* ctx, TraceHelper* th )
 		{
 			_Unwind_Ptr ip;
 
@@ -86,23 +93,21 @@ namespace backtracexx
 			Frame frame( ip );
 #endif
 			lookupSymbol( frame );
-			trace->push_back( frame );
+			th->trace.push_back( frame );
 			//
 			// temporary workaround for glibc bug:
 			// http://sources.redhat.com/bugzilla/show_bug.cgi?id=6693
 			//
-			static __thread _Unwind_Ptr prevIp = 0;
-			static __thread unsigned recursionDepth = 0;
 			unsigned const RecursionLimit = 8;
-			if ( prevIp == ip )
+			if ( th->prevIp == ip )
 			{
-				if ( ++recursionDepth > RecursionLimit )
+				if ( ++th->recursionDepth > RecursionLimit )
 					return _URC_END_OF_STACK;
 			}
 			else
 			{
-				prevIp = ip;
-				recursionDepth = 0;
+				th->prevIp = ip;
+				th->recursionDepth = 0;
 			}
 			return _URC_NO_REASON;
 		}
@@ -159,16 +164,18 @@ namespace backtracexx
 
 	Trace scan( ::PCONTEXT ctx )
 	{
-		Trace trace;
-
 #if defined( __GNUC__ )
 
+		TraceHelper th;
 		//
 		//	libgcc takes care about proper stack walking.
 		//
-		_Unwind_Backtrace( reinterpret_cast< _Unwind_Trace_Fn >( helper ), &trace );
+		_Unwind_Backtrace( reinterpret_cast< _Unwind_Trace_Fn >( helper ), &th );
+		return th.trace;
 
 #elif defined( _MSC_VER ) && defined( WIN32 )
+
+		Trace trace;
 
 		::HANDLE process = ::GetCurrentProcess();
 		::SymInitialize( process, 0, FALSE );
@@ -213,10 +220,9 @@ namespace backtracexx
 				trace.push_back( frame );
 		}
 		::SymCleanup( process );
+		return trace;
 
 #endif
-
-		return trace;
 	}
 
 	std::ostream& operator << ( std::ostream& os, Trace const& t )
