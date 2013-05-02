@@ -2,6 +2,11 @@
 #include <iomanip>
 #include <iostream>
 
+//
+//	TODO:
+//	- use libdwarf for printing line info for ELF objects.
+//
+
 #if defined( __GNUC__ )
 #include <cxxabi.h>
 #include <dlfcn.h>
@@ -132,6 +137,14 @@ namespace backtracexx
 				{
 					frame.symbol = symbol->Name;
 					frame.displacement = static_cast< unsigned long >( displacement );
+					::IMAGEHLP_LINE64 line;
+					line.SizeOfStruct = sizeof( ::IMAGEHLP_LINE64 );
+					::DWORD lineDisplacement;
+					if ( ::SymGetLineFromAddr64( ::GetCurrentProcess(), frame.address, &lineDisplacement, &line ) )
+					{
+						frame.fileName = line.FileName;
+						frame.lineNumber = line.LineNumber;
+					}
 				}
 				::SymUnloadModule64( ::GetCurrentProcess(), reinterpret_cast< ::DWORD64 >( mbi.AllocationBase ) );
 			}
@@ -142,7 +155,7 @@ namespace backtracexx
 
 	Frame::Frame()
 	:
-		address(), displacement(), signalTrampoline()
+		address(), displacement(), lineNumber(), signalTrampoline()
 	{
 	}
 
@@ -161,7 +174,7 @@ namespace backtracexx
 
 		::HANDLE process = ::GetCurrentProcess();
 		::SymInitialize( process, 0, FALSE );
-		::SymSetOptions( ::SymGetOptions() | SYMOPT_UNDNAME );
+		::SymSetOptions( ::SymGetOptions() | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES );
 		::CONTEXT context = { 0 };
 		::STACKFRAME64 stackFrame = { 0 };
 		stackFrame.AddrPC.Mode = stackFrame.AddrFrame.Mode = stackFrame.AddrStack.Mode = AddrModeFlat;
@@ -224,6 +237,11 @@ namespace backtracexx
 			if ( f.signalTrampoline )
 				os << " [signal trampoline]";
 			os << " [" << f.moduleName << " @ " << std::showbase << std::hex << f.moduleBaseAddress << " ]" << std::endl;
+			if ( !f.fileName.empty() )
+			{
+				static std::string filler( 14, ' ' );
+				os << filler << "at : " << f.fileName << ':' << std::dec << f.lineNumber << std::endl;
+			}
 		}
 		os << "==================" << std::endl;
 		return os;

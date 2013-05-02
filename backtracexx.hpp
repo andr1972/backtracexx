@@ -34,6 +34,8 @@ namespace backtracexx
 		unsigned long displacement;
 		std::string moduleName;
 		unsigned long moduleBaseAddress;
+		std::string fileName;
+		unsigned long lineNumber;
 		bool signalTrampoline;
 	};
 
