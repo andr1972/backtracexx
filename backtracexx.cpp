@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 #include <unwind.h>
 #elif defined( _MSC_VER )
+#pragma warning( disable : 4311 )	//	'reinterpret_cast' : pointer truncation from 'PVOID' to 'unsigned long'
 #pragma warning( disable : 4312 )	//	'reinterpret_cast' : conversion from 'unsigned long' to 'void*' of greater size
 #include <dbghelp.h>
 //
@@ -115,7 +116,7 @@ namespace backtracexx
 			::VirtualQuery( reinterpret_cast< ::LPCVOID >( frame.address ), &mbi, sizeof( mbi ) );
 			::CHAR moduleName[ MAX_PATH ];
 			::GetModuleFileNameA( reinterpret_cast< ::HMODULE >( mbi.AllocationBase ), moduleName, sizeof( moduleName ) );
-			frame.moduleBaseAddress = mbi.AllocationBase;
+			frame.moduleBaseAddress = reinterpret_cast< unsigned long >( mbi.AllocationBase );
 			frame.moduleName = moduleName;
 			int const MaxSymbolNameLength = 8192;
 			::BYTE symbolBuffer[ sizeof( ::IMAGEHLP_SYMBOL64 ) + MaxSymbolNameLength ];
