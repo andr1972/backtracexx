@@ -32,6 +32,7 @@ namespace backtracexx
 
 		void const* address;
 		std::string symbol;
+		std::string symbolMangled;
 		long displacement;
 		std::string moduleName;
 		void const* moduleBaseAddress;

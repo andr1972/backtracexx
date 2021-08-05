@@ -55,6 +55,7 @@ namespace backtracexx
 				frame.moduleName = info.dli_fname;
 			if ( info.dli_saddr )
 			{
+				frame.symbolMangled = info.dli_sname;
 				frame.displacement = reinterpret_cast< ::ptrdiff_t >( frame.address )
 					- reinterpret_cast< ::ptrdiff_t >( info.dli_saddr );
 				int status;
