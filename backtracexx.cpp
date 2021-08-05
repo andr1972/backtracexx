@@ -11,7 +11,7 @@
 
 #if defined( __GNUC__ )
 #include <cxxabi.h>
-#if defined( __linux__ )
+#if defined( __linux__ ) || defined( __APPLE__ )
 #include <dlfcn.h>
 #endif
 #include <unwind.h>
@@ -45,7 +45,7 @@ namespace backtracexx
 
 	bool lookupSymbol( Frame& frame )
 	{
-#if defined( __linux__ )
+#if defined( __linux__ ) || defined( __APPLE__ )
 
 		Dl_info info;
 		if ( ::dladdr( frame.address, &info ) )
