@@ -82,7 +82,7 @@ namespace backtracexx
 	{
 		struct TraceHelper
 		{
-			_Unwind_Ptr prevIp;
+			_Unwind_Ptr prevIp = -1;
 			unsigned recursionDepth;
 			Trace trace;
 		};
