@@ -11,7 +11,7 @@
 
 #if defined( __GNUC__ )
 #include <cxxabi.h>
-#if defined( __linux__ )
+#if defined( __linux__ ) || defined( __APPLE__ )
 #include <dlfcn.h>
 #endif
 #include <unwind.h>
@@ -45,7 +45,7 @@ namespace backtracexx
 
 	bool lookupSymbol( Frame& frame )
 	{
-#if defined( __linux__ )
+#if defined( __linux__ ) || defined( __APPLE__ )
 
 		Dl_info info;
 		if ( ::dladdr( frame.address, &info ) )
@@ -55,6 +55,7 @@ namespace backtracexx
 				frame.moduleName = info.dli_fname;
 			if ( info.dli_saddr )
 			{
+				frame.symbolMangled = info.dli_sname;
 				frame.displacement = reinterpret_cast< ::ptrdiff_t >( frame.address )
 					- reinterpret_cast< ::ptrdiff_t >( info.dli_saddr );
 				int status;
@@ -81,7 +82,7 @@ namespace backtracexx
 	{
 		struct TraceHelper
 		{
-			_Unwind_Ptr prevIp;
+			_Unwind_Ptr prevIp = -1;
 			unsigned recursionDepth;
 			Trace trace;
 		};
